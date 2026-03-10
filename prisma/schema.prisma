@@ -1,0 +1,72 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "cockroachdb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  savedLocations SavedLocation[]
+
+  @@map("users")
+}
+
+model City {
+  id         String  @id @default(cuid())
+  name       String
+  county     String
+  population Int
+  latitude   Float
+  longitude  Float
+  state      String  @default("Massachusetts")
+
+  savedLocations SavedLocation[]
+  crimeCache     CrimeCache[]
+
+  @@unique([name, state])
+  @@index([name])
+  @@map("cities")
+}
+
+model SavedLocation {
+  id          String   @id @default(cuid())
+  userId      String
+  cityId      String
+  safetyScore Float?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cityId])
+  @@index([userId])
+  @@map("saved_locations")
+}
+
+model CrimeCache {
+  id            String   @id @default(cuid())
+  cityId        String
+  violentCrime  Int
+  propertyCrime Int
+  year          Int
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+
+  city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@unique([cityId, year])
+  @@index([cityId])
+  @@map("crime_cache")
+}
