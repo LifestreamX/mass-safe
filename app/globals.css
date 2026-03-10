@@ -3,7 +3,20 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
+  /* Brand theme for MassSafe — calm, resilient, and clear
+     - primary: protective teal for headers/CTA
+     - safety: green for good/low-risk indicators
+     - warn: amber/orange for cautions
+     - danger: red for alerts/high-risk
+     - muted: neutral slate for secondary text
+  */
+  --color-primary: 15 118 110; /* #0f766e */
+  --color-safety: 34 197 94; /* #22c55e */
+  --color-warn: 245 158 11; /* #f59e0b */
+  --color-danger: 239 68 68; /* #ef4444 */
+  --color-muted: 100 116 139; /* #64748b */
+
+  --foreground-rgb: 15, 23, 42; /* slate-900 */
   --background-start-rgb: 249, 250, 251;
   --background-end-rgb: 255, 255, 255;
 }

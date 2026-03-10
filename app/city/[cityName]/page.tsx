@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { fetchCrimeData, fetchHistoricalCrimeData } from '@/lib/crime-api';
+import { fetchCrimeData } from '@/lib/crime-api';
 import {
   calculateSafetyScore,
   generateSafetySummary,
@@ -44,8 +44,38 @@ export default async function CityPage({ params }: CityPageProps) {
   }
 
   // Fetch crime data
-  const crimeData = await fetchCrimeData(city.name);
-  const historicalData = await fetchHistoricalCrimeData(city.name, 5);
+  let crimeData: any = null;
+  let crimeError: string | null = null;
+  try {
+    crimeData = await fetchCrimeData(city.name);
+  } catch (err: any) {
+    crimeError = err?.message || 'Crime data unavailable.';
+  }
+
+  if (
+    !crimeData ||
+    typeof crimeData.violentCrime !== 'number' ||
+    typeof crimeData.propertyCrime !== 'number'
+  ) {
+    return (
+      <div className='flex flex-col items-center justify-center min-h-[60vh] p-8'>
+        <div className='w-full max-w-md mb-8'>
+          <SearchBar />
+        </div>
+        <div className='max-w-2xl w-full text-center'>
+          <h1 className='text-2xl font-bold mb-4'>{city.name}</h1>
+          <p className='text-red-600 font-semibold mb-2'>
+            Crime data is currently unavailable for this city.
+          </p>
+          {crimeError && (
+            <pre className='text-xs text-gray-500 whitespace-pre-wrap break-words'>
+              {crimeError}
+            </pre>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // Calculate safety score
   const safetyResult = calculateSafetyScore({
@@ -63,8 +93,10 @@ export default async function CityPage({ params }: CityPageProps) {
     <div className='bg-gray-50 min-h-screen'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
         {/* Search Bar */}
-        <div className='mb-8'>
-          <SearchBar />
+        <div className='mb-8 flex justify-center'>
+          <div className='w-full max-w-md'>
+            <SearchBar />
+          </div>
         </div>
 
         {/* City Header */}

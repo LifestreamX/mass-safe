@@ -83,15 +83,18 @@ export default function SearchBar({
   };
 
   return (
-    <div className='relative w-full max-w-2xl' ref={dropdownRef}>
-      <form onSubmit={handleSubmit}>
-        <div className='relative'>
+    <div
+      className='relative w-full max-w-2xl flex justify-center'
+      ref={dropdownRef}
+    >
+      <form onSubmit={handleSubmit} className='w-full'>
+        <div className='relative flex justify-center items-center'>
           <input
             type='text'
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={placeholder}
-            className='w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-full focus:outline-none focus:border-primary shadow-lg'
+            className='w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-full focus:outline-none focus:border-primary shadow-lg text-center'
           />
           <button
             type='submit'

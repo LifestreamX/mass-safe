@@ -24,7 +24,7 @@ export default function HomePage() {
         </div>
 
         {/* Search Bar */}
-        <div className='mb-12'>
+        <div className='mb-12 flex justify-center'>
           <SearchBar placeholder='Search Massachusetts cities or ZIP codes' />
         </div>
 

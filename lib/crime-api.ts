@@ -7,6 +7,7 @@ export interface FBICrimeData {
   violentCrime: number;
   propertyCrime: number;
   year: number;
+  source?: 'live' | 'mock';
 }
 
 const FBI_API_BASE = 'https://api.usa.gov/crime/fbi/cde';
@@ -19,36 +20,80 @@ export async function fetchCrimeData(
   cityName: string,
   state: string = 'Massachusetts',
 ): Promise<FBICrimeData> {
-  try {
-    const apiKey = process.env.FBI_API_KEY;
+  const apiKey = process.env.FBI_API_KEY;
 
-    if (!apiKey) {
-      console.warn('FBI_API_KEY not configured, using mock data');
-      return getMockCrimeData(cityName);
-    }
-
-    // Note: The actual FBI API endpoint structure may vary
-    // This is a simplified version - adjust based on actual API documentation
-    const url = `${FBI_API_BASE}/arrest/state/${state}/offense?api_key=${apiKey}`;
-
-    const response = await fetch(url, {
-      next: { revalidate: 86400 }, // Cache for 24 hours
-    });
-
-    if (!response.ok) {
-      throw new Error(`FBI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    // Parse response and extract violent and property crime counts
-    // This is simplified - actual parsing will depend on API response structure
-    return parseFBIResponse(data, cityName);
-  } catch (error) {
-    console.error('Error fetching FBI crime data:', error);
-    // Return mock data as fallback
-    return getMockCrimeData(cityName);
+  if (!apiKey) {
+    throw new Error(
+      'FBI_API_KEY not configured. Please set a valid api.data.gov key in your .env.',
+    );
   }
+
+  const overrideBase = process.env.FBI_API_ENDPOINT;
+  const base = overrideBase || FBI_API_BASE;
+  const year = new Date().getFullYear() - 1;
+
+  // Use correct FBI endpoint: /summarized/state/{state}/{offense}/{year}
+  const offenseCandidates = [
+    { key: 'violentCrime', id: 'violent-crime' },
+    { key: 'propertyCrime', id: 'property-crime' },
+  ];
+
+  const results: Record<string, number> = {};
+  for (const off of offenseCandidates) {
+    let count = 0;
+    let lastError: any = null;
+    const candidateUrl = `${base}/summarized/state/${encodeURIComponent(state)}/${off.id}/${year}?api_key=${apiKey}`;
+    const res = await fetch(candidateUrl, {
+      next: { revalidate: 86400 },
+      headers: { 'x-api-key': apiKey },
+    });
+    const txt = await res.text();
+    let json: any;
+    try {
+      json = JSON.parse(txt);
+    } catch (e) {
+      json = txt;
+    }
+
+    if (!res.ok) {
+      // Custom handling for 503 Service Unavailable
+      if (res.status === 503) {
+        throw new Error(
+          'The FBI Crime Data API is temporarily unavailable (503 Service Unavailable). Please try again later.',
+        );
+      }
+      lastError = `FBI candidate URL failed: ${candidateUrl} ${res.status} ${JSON.stringify(json)}`;
+      throw new Error(lastError);
+    }
+
+    if (Array.isArray(json.results) && json.results.length > 0) {
+      const r = json.results[0];
+      count =
+        typeof r.actual === 'number'
+          ? r.actual
+          : Number(r.count || r.value || 0);
+    } else if (Array.isArray(json.data) && json.data.length > 0) {
+      const r = json.data[0];
+      count = Number(r.actual || r.count || r.value || 0);
+    } else if (typeof json === 'object' && json !== null) {
+      count = Number(json.actual || json.count || json.value || 0);
+    }
+
+    results[off.key] = count || 0;
+  }
+
+  if (Object.keys(results).length > 0) {
+    return {
+      violentCrime: results.violentCrime,
+      propertyCrime: results.propertyCrime,
+      year,
+      source: 'live',
+    } as FBICrimeData;
+  }
+
+  throw new Error(
+    'FBI API: no summarized endpoints returned valid data. No mock data fallback.',
+  );
 }
 
 /**
@@ -63,67 +108,4 @@ function parseFBIResponse(data: any, cityName: string): FBICrimeData {
     propertyCrime: data.property_crime || 0,
     year: data.year || new Date().getFullYear() - 1,
   };
-}
-
-/**
- * Generate realistic mock crime data for development and fallback
- * Based on Massachusetts crime statistics patterns
- */
-export function getMockCrimeData(cityName: string): FBICrimeData {
-  // Base rates per 1000 residents for Massachusetts cities
-  const mockData: Record<
-    string,
-    { violent: number; property: number; pop: number }
-  > = {
-    Boston: { violent: 680, property: 3200, pop: 675000 },
-    Cambridge: { violent: 180, property: 1800, pop: 118000 },
-    Quincy: { violent: 95, property: 900, pop: 95000 },
-    Somerville: { violent: 85, property: 850, pop: 81000 },
-    Salem: { violent: 45, property: 550, pop: 44000 },
-    Worcester: { violent: 520, property: 2100, pop: 185000 },
-    Springfield: { violent: 890, property: 3500, pop: 154000 },
-    Lowell: { violent: 280, property: 1400, pop: 110000 },
-    Newton: { violent: 15, property: 450, pop: 88000 },
-    Brookline: { violent: 20, property: 400, pop: 59000 },
-  };
-
-  const cityData = mockData[cityName] || {
-    // Default for unknown cities
-    violent: Math.floor(Math.random() * 100) + 50,
-    property: Math.floor(Math.random() * 500) + 400,
-    pop: 50000,
-  };
-
-  return {
-    violentCrime: cityData.violent,
-    propertyCrime: cityData.property,
-    year: new Date().getFullYear() - 1,
-  };
-}
-
-/**
- * Fetch historical crime data for trend analysis
- */
-export async function fetchHistoricalCrimeData(
-  cityName: string,
-  years: number = 5,
-): Promise<FBICrimeData[]> {
-  const currentYear = new Date().getFullYear();
-  const data: FBICrimeData[] = [];
-
-  // For development, generate mock trending data
-  const baseData = getMockCrimeData(cityName);
-
-  for (let i = years - 1; i >= 0; i--) {
-    const year = currentYear - 1 - i;
-    const trend = 1 - i * 0.05; // slight downward trend over time
-
-    data.push({
-      violentCrime: Math.round(baseData.violentCrime * trend),
-      propertyCrime: Math.round(baseData.propertyCrime * trend),
-      year,
-    });
-  }
-
-  return data;
 }

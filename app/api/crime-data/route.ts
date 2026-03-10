@@ -1,3 +1,5 @@
+// Ensure this route is always dynamic (never statically generated)
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { fetchCrimeData } from '@/lib/crime-api';
@@ -54,6 +56,7 @@ export async function GET(request: NextRequest) {
         propertyCrime: crimeCache.propertyCrime,
         year: crimeCache.year,
         cached: true,
+        source: 'cache',
       });
     }
 
@@ -86,12 +89,14 @@ export async function GET(request: NextRequest) {
       propertyCrime: crimeCache.propertyCrime,
       year: crimeCache.year,
       cached: false,
+      source: crimeCache.source || 'unknown',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Crime data fetch error:', error);
+    // If the error is due to FBI API or missing data, return a 503 with the error message
     return NextResponse.json(
-      { error: 'Failed to fetch crime data' },
-      { status: 500 },
+      { error: error?.message || 'Failed to fetch FBI data', source: 'error' },
+      { status: 503 },
     );
   }
 }

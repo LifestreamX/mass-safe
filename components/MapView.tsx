@@ -1,8 +1,25 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
+import 'leaflet/dist/leaflet.css';
+
+// Dynamically import Leaflet components to avoid SSR issues
+const MapContainer = dynamic(
+  () => import('react-leaflet').then((mod) => mod.MapContainer),
+  { ssr: false },
+);
+const TileLayer = dynamic(
+  () => import('react-leaflet').then((mod) => mod.TileLayer),
+  { ssr: false },
+);
+const Marker = dynamic(
+  () => import('react-leaflet').then((mod) => mod.Marker),
+  { ssr: false },
+);
+const Popup = dynamic(() => import('react-leaflet').then((mod) => mod.Popup), {
+  ssr: false,
+});
 
 interface MapViewProps {
   latitude: number;
@@ -15,62 +32,62 @@ export default function MapView({
   longitude,
   cityName,
 }: MapViewProps) {
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
+  const [L, setL] = useState<any>(null);
 
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
-
-    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-
-    if (!token) {
-      console.error('Mapbox token not configured');
-      return;
-    }
-
-    mapboxgl.accessToken = token;
-
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [longitude, latitude],
-      zoom: 12,
+    // Import Leaflet directly for markers and icons which need DOM
+    import('leaflet').then((leaflet) => {
+      setL(leaflet);
+      // Fix Leaflet's default marker icon issue in Next.js
+      delete (leaflet.Icon.Default.prototype as any)._getIconUrl;
+      leaflet.Icon.Default.mergeOptions({
+        iconRetinaUrl:
+          'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+        iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+        shadowUrl:
+          'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+      });
     });
+  }, []);
 
-    // Add navigation controls
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-    // Add marker
-    new mapboxgl.Marker({ color: '#2563eb' })
-      .setLngLat([longitude, latitude])
-      .setPopup(
-        new mapboxgl.Popup({ offset: 25 }).setHTML(
-          `<strong>${cityName}</strong><br>Massachusetts`,
-        ),
-      )
-      .addTo(map.current);
-
-    map.current.on('load', () => {
-      setMapLoaded(true);
-    });
-
-    return () => {
-      map.current?.remove();
-    };
-  }, [latitude, longitude, cityName]);
-
-  return (
-    <div className='bg-white rounded-lg shadow-md overflow-hidden'>
-      <div className='p-4 border-b'>
-        <h3 className='text-xl font-semibold'>Location</h3>
-      </div>
-      <div ref={mapContainer} className='h-96 w-full' />
-      {!mapLoaded && (
-        <div className='absolute inset-0 flex items-center justify-center bg-gray-100'>
+  if (!L) {
+    return (
+      <div className='bg-white rounded-lg shadow-md overflow-hidden'>
+        <div className='p-4 border-b'>
+          <h3 className='text-xl font-semibold'>Location</h3>
+        </div>
+        <div className='h-96 w-full flex items-center justify-center bg-gray-100'>
           <div className='text-gray-500'>Loading map...</div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className='bg-white rounded-lg shadow-md overflow-hidden relative z-0'>
+      <div className='p-4 border-b'>
+        <h3 className='text-xl font-semibold'>Location: {cityName}</h3>
+      </div>
+      <div className='h-96 w-full'>
+        <MapContainer
+          center={[latitude, longitude]}
+          zoom={12}
+          scrollWheelZoom={false}
+          style={{ height: '100%', width: '100%' }}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+          />
+          <Marker position={[latitude, longitude]}>
+            <Popup>
+              <strong>{cityName}</strong>
+              <br />
+              Massachusetts
+            </Popup>
+          </Marker>
+        </MapContainer>
+      </div>
     </div>
   );
 }
