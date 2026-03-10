@@ -7,7 +7,7 @@ interface City {
   id: string;
   name: string;
   county: string;
-  population: number;
+  // population: number; // removed, not used
 }
 
 interface SearchBarProps {
@@ -94,7 +94,11 @@ export default function SearchBar({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={placeholder}
-            className='w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-full focus:outline-none focus:border-primary shadow-lg text-center'
+            className='w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-full focus:outline-none focus:border-primary shadow-lg text-center transition-all duration-200 focus:shadow-primary/20'
+            autoComplete='off'
+            aria-autocomplete='list'
+            aria-expanded={isOpen}
+            aria-controls='city-search-dropdown'
           />
           <button
             type='submit'
@@ -106,22 +110,45 @@ export default function SearchBar({
       </form>
 
       {isOpen && (
-        <div className='absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-xl max-h-96 overflow-y-auto'>
+        <div
+          id='city-search-dropdown'
+          className='absolute left-0 right-0 mx-auto z-50 mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-80 overflow-y-auto animate-fade-in'
+          style={{ minWidth: '300px', top: '100%', width: '100%' }}
+        >
+          <style jsx>{`
+            #city-search-dropdown::-webkit-scrollbar {
+              width: 10px;
+              background: #f1f5f9;
+            }
+            #city-search-dropdown::-webkit-scrollbar-thumb {
+              background: #0f766e;
+              border-radius: 8px;
+            }
+            #city-search-dropdown {
+              scrollbar-color: #0f766e #f1f5f9;
+              scrollbar-width: thin;
+            }
+          `}</style>
           {loading ? (
             <div className='p-4 text-center text-gray-500'>Searching...</div>
           ) : results.length > 0 ? (
-            <ul>
-              {results.map((city) => (
+            <ul className='divide-y divide-gray-100'>
+              {results.map((city, idx) => (
                 <li
                   key={city.id}
                   onClick={() => navigateToCity(city.name)}
-                  className='p-4 hover:bg-gray-50 cursor-pointer border-b last:border-b-0'
+                  className='flex flex-col gap-1 px-5 py-3 hover:bg-primary/10 cursor-pointer transition-colors duration-150 focus:bg-primary/20 outline-none'
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') navigateToCity(city.name);
+                  }}
                 >
-                  <div className='font-semibold text-gray-900'>{city.name}</div>
-                  <div className='text-sm text-gray-600'>
-                    {city.county} County • Population:{' '}
-                    {city.population.toLocaleString()}
-                  </div>
+                  <span className='font-semibold text-gray-900'>
+                    {city.name}
+                  </span>
+                  <span className='text-xs text-gray-500'>
+                    {city.county} County
+                  </span>
                 </li>
               ))}
             </ul>

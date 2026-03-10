@@ -1,15 +1,20 @@
 import SearchBar from '@/components/SearchBar';
 import Link from 'next/link';
+import { prisma } from '@/lib/prisma';
 
-const popularCities = [
-  { name: 'Boston', href: '/city/boston' },
-  { name: 'Cambridge', href: '/city/cambridge' },
-  { name: 'Quincy', href: '/city/quincy' },
-  { name: 'Somerville', href: '/city/somerville' },
-  { name: 'Salem', href: '/city/salem' },
-];
-
-export default function HomePage() {
+export default async function HomePage() {
+  // Query top 6 most populous cities directly from the database
+  const popularCities = await prisma.city.findMany({
+    where: { state: 'Massachusetts' },
+    orderBy: { name: 'asc' },
+    take: 6,
+    select: {
+      id: true,
+      name: true,
+      // population: true, // removed
+      county: true,
+    },
+  });
   return (
     <div className='min-h-[calc(100vh-8rem)] flex flex-col items-center justify-center px-4'>
       <div className='max-w-4xl w-full text-center'>
@@ -34,10 +39,10 @@ export default function HomePage() {
             Popular Searches
           </h2>
           <div className='flex flex-wrap justify-center gap-3'>
-            {popularCities.map((city) => (
+            {popularCities.map((city: any) => (
               <Link
-                key={city.name}
-                href={city.href}
+                key={city.id}
+                href={`/city/${encodeURIComponent(city.name.toLowerCase().replace(/ /g, '-'))}`}
                 className='px-6 py-3 bg-white border-2 border-gray-200 rounded-full hover:border-primary hover:text-primary transition shadow-sm'
               >
                 {city.name}

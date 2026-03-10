@@ -26,11 +26,11 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         county: true,
-        population: true,
+        // population: true, // removed
       },
       take: 10,
       orderBy: {
-        population: 'desc',
+        name: 'asc',
       },
     });
 
