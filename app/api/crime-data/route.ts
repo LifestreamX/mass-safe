@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
       propertyCrime: crimeCache.propertyCrime,
       year: crimeCache.year,
       cached: false,
-      source: crimeCache.source || 'unknown',
+      source: crimeData?.source ?? 'fbi',
     });
   } catch (error: any) {
     console.error('Crime data fetch error:', error);
