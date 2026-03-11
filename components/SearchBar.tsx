@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation';
 
 interface City {
   id: string;
+  jurisdiction: string;
   name: string;
-  county: string;
-  population: number; // 2020 Census
-  type?: string;
+  population: number;
+  crimeRate: number | null;
+  crimesTotal: number;
 }
 
 interface SearchBarProps {
@@ -18,7 +19,7 @@ interface SearchBarProps {
 
 export default function SearchBar({
   initialValue = '',
-  placeholder = 'Search Massachusetts cities',
+  placeholder = 'Search...',
 }: SearchBarProps) {
   const [query, setQuery] = useState(initialValue);
   const [results, setResults] = useState<City[]>([]);
@@ -85,21 +86,21 @@ export default function SearchBar({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (highlightedIndex >= 0 && results[highlightedIndex]) {
-      navigateToCity(results[highlightedIndex].name);
+      navigateToCity(results[highlightedIndex].jurisdiction);
     } else if (results.length > 0) {
-      navigateToCity(results[0].name);
+      navigateToCity(results[0].jurisdiction);
     }
   };
 
-  const navigateToCity = (cityName: string) => {
+  const navigateToCity = (jurisdiction: string) => {
     setIsOpen(false);
     setQuery('');
-    router.push(`/city/${encodeURIComponent(cityName.toLowerCase())}`);
+    router.push(`/city/${encodeURIComponent(jurisdiction)}`);
   };
 
   return (
     <div
-      className='relative w-full max-w-2xl flex justify-center'
+      className='relative w-full max-w-2xl flex justify-center z-0'
       ref={dropdownRef}
     >
       <form onSubmit={handleSubmit} className='w-full'>
@@ -112,7 +113,7 @@ export default function SearchBar({
               setHighlightedIndex(-1);
             }}
             placeholder={placeholder}
-            className='w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-full focus:outline-none focus:border-primary shadow-lg text-center transition-all duration-200 focus:shadow-primary/20'
+            className=' w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-full focus:outline-none focus:border-primary shadow-lg text-center transition-all duration-200 focus:shadow-primary/20'
             autoComplete='off'
             aria-autocomplete='list'
             aria-expanded={isOpen}
@@ -149,7 +150,7 @@ export default function SearchBar({
       {isOpen && (
         <div
           id='city-search-dropdown'
-          className='absolute left-0 right-0 mx-auto z-50 mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-80 overflow-y-auto animate-fade-in'
+          className='absolute left-0 right-0 mx-auto z-20 mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-80 overflow-y-auto animate-fade-in'
           style={{ minWidth: '300px', top: '100%', width: '100%' }}
         >
           <style jsx>{`
@@ -173,7 +174,7 @@ export default function SearchBar({
               {results.map((city, idx) => (
                 <li
                   key={city.id}
-                  onClick={() => navigateToCity(city.name)}
+                  onClick={() => navigateToCity(city.jurisdiction)}
                   className={`px-5 py-3 cursor-pointer transition-colors duration-150 outline-none ${
                     highlightedIndex === idx
                       ? 'bg-primary/20'
@@ -183,7 +184,7 @@ export default function SearchBar({
                   onMouseEnter={() => setHighlightedIndex(idx)}
                   onMouseLeave={() => setHighlightedIndex(-1)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') navigateToCity(city.name);
+                    if (e.key === 'Enter') navigateToCity(city.jurisdiction);
                   }}
                   aria-selected={highlightedIndex === idx}
                 >
@@ -192,19 +193,16 @@ export default function SearchBar({
                       <span className='font-semibold text-gray-900'>
                         {city.name}
                       </span>
-                      {city.type && (
-                        <span className='inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200'>
-                          {city.type}
-                        </span>
-                      )}
                     </div>
 
                     <div className='text-xs text-gray-500'>
-                      {city.county} County
+                      {city.crimeRate !== null
+                        ? `Crime Rate: ${city.crimeRate.toFixed(2)}`
+                        : 'Crime Rate: N/A'}
                     </div>
 
                     <div className='text-xs text-gray-400'>
-                      Pop. {city.population.toLocaleString()} (2020)
+                      Pop. {city.population.toLocaleString()}
                     </div>
                   </div>
                 </li>

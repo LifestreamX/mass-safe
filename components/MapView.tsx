@@ -1,25 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
+import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
-
-// Dynamically import Leaflet components to avoid SSR issues
-const MapContainer = dynamic(
-  () => import('react-leaflet').then((mod) => mod.MapContainer),
-  { ssr: false },
-);
-const TileLayer = dynamic(
-  () => import('react-leaflet').then((mod) => mod.TileLayer),
-  { ssr: false },
-);
-const Marker = dynamic(
-  () => import('react-leaflet').then((mod) => mod.Marker),
-  { ssr: false },
-);
-const Popup = dynamic(() => import('react-leaflet').then((mod) => mod.Popup), {
-  ssr: false,
-});
 
 interface MapViewProps {
   latitude: number;
@@ -32,62 +14,79 @@ export default function MapView({
   longitude,
   cityName,
 }: MapViewProps) {
-  const [L, setL] = useState<any>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<any | null>(null);
 
   useEffect(() => {
-    // Import Leaflet directly for markers and icons which need DOM
-    import('leaflet').then((leaflet) => {
-      setL(leaflet);
-      // Fix Leaflet's default marker icon issue in Next.js
-      delete (leaflet.Icon.Default.prototype as any)._getIconUrl;
-      leaflet.Icon.Default.mergeOptions({
-        iconRetinaUrl:
-          'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-        iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-        shadowUrl:
-          'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-      });
-    });
-  }, []);
+    let cancelled = false;
+    if (typeof window === 'undefined' || !containerRef.current) return;
 
-  if (!L) {
-    return (
-      <div className='bg-white rounded-lg shadow-md overflow-hidden'>
-        <div className='p-4 border-b'>
-          <h3 className='text-xl font-semibold'>Location</h3>
-        </div>
-        <div className='h-96 w-full flex items-center justify-center bg-gray-100'>
-          <div className='text-gray-500'>Loading map...</div>
-        </div>
-      </div>
-    );
-  }
+    // Dynamically import Leaflet on the client only
+    import('leaflet').then((Lmodule) => {
+      if (cancelled) return;
+      const L = (Lmodule as any).default ?? Lmodule;
+
+      try {
+        // Fix default icon paths when loading from CDN
+        delete (L.Icon.Default.prototype as any)._getIconUrl;
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl:
+            'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+          iconUrl:
+            'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+          shadowUrl:
+            'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+        });
+      } catch (e) {
+        // ignore
+      }
+
+      // Ensure container is empty
+      containerRef.current!.innerHTML = '';
+
+      // If a previous map exists, remove it first
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+        } catch (e) {
+          // ignore
+        }
+        mapRef.current = null;
+      }
+
+      // Create the Leaflet map directly
+      const map = L.map(containerRef.current as HTMLElement, {
+        zoomControl: true,
+      }).setView([latitude, longitude], 13);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(map);
+
+      L.marker([latitude, longitude])
+        .addTo(map)
+        .bindPopup(`<strong>${cityName}</strong><br/>Massachusetts`)
+        .openPopup();
+
+      mapRef.current = map;
+    });
+
+    return () => {
+      cancelled = true;
+      if (mapRef.current) {
+        try {
+          mapRef.current.remove();
+        } catch (e) {
+          // ignore
+        }
+        mapRef.current = null;
+      }
+    };
+  }, [latitude, longitude, cityName]);
 
   return (
-    <div className='bg-white rounded-lg shadow-md overflow-hidden relative z-0'>
-      <div className='p-4 border-b'>
-        <h3 className='text-xl font-semibold'>Location: {cityName}</h3>
-      </div>
-      <div className='h-96 w-full'>
-        <MapContainer
-          center={[latitude, longitude]}
-          zoom={12}
-          scrollWheelZoom={false}
-          style={{ height: '100%', width: '100%' }}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-          />
-          <Marker position={[latitude, longitude]}>
-            <Popup>
-              <strong>{cityName}</strong>
-              <br />
-              Massachusetts
-            </Popup>
-          </Marker>
-        </MapContainer>
-      </div>
+    <div className='w-full h-96 rounded-lg overflow-hidden relative'>
+      <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
     </div>
   );
 }

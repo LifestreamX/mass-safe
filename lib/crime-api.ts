@@ -7,14 +7,15 @@ export interface FBICrimeData {
   violentCrime: number;
   propertyCrime: number;
   year: number;
-  source?: 'live' | 'mock';
+  source?: 'live';
 }
 
 const FBI_API_BASE = 'https://api.usa.gov/crime/fbi/cde';
 
 /**
  * Fetch crime data for a specific city and state
- * Falls back to mock data for development
+ * Fetches live FBI data and throws if the API key is missing or the
+ * remote API returns an error. No mock/fallback data is produced.
  */
 export async function fetchCrimeData(
   cityName: string,
@@ -23,30 +24,8 @@ export async function fetchCrimeData(
 ): Promise<FBICrimeData> {
   const apiKey = process.env.FBI_API_KEY;
 
-  // If no API key is configured in development, fall back to a deterministic
-  // mock estimate based on population so the app remains usable locally.
   if (!apiKey) {
-    const pop = population ?? 0;
-    if (pop > 0) {
-      // Simple per-100k estimates (approximate):
-      // violent ~ 400 per 100k, property ~ 1500 per 100k
-      const violentCrime = Math.round((pop / 100000) * 400);
-      const propertyCrime = Math.round((pop / 100000) * 1500);
-      return {
-        violentCrime,
-        propertyCrime,
-        year: new Date().getFullYear() - 1,
-        source: 'mock',
-      } as FBICrimeData;
-    }
-
-    // Generic small-city fallback when population unknown
-    return {
-      violentCrime: 50,
-      propertyCrime: 300,
-      year: new Date().getFullYear() - 1,
-      source: 'mock',
-    } as FBICrimeData;
+    throw new Error('FBI_API_KEY not configured in environment');
   }
 
   const overrideBase = process.env.FBI_API_ENDPOINT;
@@ -60,83 +39,50 @@ export async function fetchCrimeData(
   ];
 
   const results: Record<string, number> = {};
-  let liveFetchFailed = false;
-  let lastFetchError: any = null;
   for (const off of offenseCandidates) {
+    const candidateUrl = `${base}/summarized/state/${encodeURIComponent(state)}/${off.id}/${year}?api_key=${apiKey}`;
+    const res = await fetch(candidateUrl, {
+      next: { revalidate: 86400 },
+      headers: { 'x-api-key': apiKey },
+    });
+
+    let json: any;
     try {
-      const candidateUrl = `${base}/summarized/state/${encodeURIComponent(state)}/${off.id}/${year}?api_key=${apiKey}`;
-      const res = await fetch(candidateUrl, {
-        next: { revalidate: 86400 },
-        headers: { 'x-api-key': apiKey },
-      });
-      const txt = await res.text();
-      let json: any;
-      try {
-        json = JSON.parse(txt);
-      } catch (e) {
-        json = txt;
-      }
-
-      if (!res.ok) {
-        // If FBI returns 503 or other error, mark that live fetch failed and break to use mock fallback
-        liveFetchFailed = true;
-        lastFetchError = { status: res.status, body: json };
-        break;
-      }
-
-      let count = 0;
-      if (Array.isArray(json.results) && json.results.length > 0) {
-        const r = json.results[0];
-        count =
-          typeof r.actual === 'number'
-            ? r.actual
-            : Number(r.count || r.value || 0);
-      } else if (Array.isArray(json.data) && json.data.length > 0) {
-        const r = json.data[0];
-        count = Number(r.actual || r.count || r.value || 0);
-      } else if (typeof json === 'object' && json !== null) {
-        count = Number(json.actual || json.count || json.value || 0);
-      }
-
-      results[off.key] = count || 0;
+      json = await res.json();
     } catch (err) {
-      liveFetchFailed = true;
-      lastFetchError = err;
-      break;
+      throw new Error(`Failed to parse FBI response for ${off.id}: ${err}`);
     }
+
+    if (!res.ok) {
+      throw new Error(`FBI API error ${res.status}: ${JSON.stringify(json)}`);
+    }
+
+    let count = 0;
+    if (Array.isArray(json.results) && json.results.length > 0) {
+      const r = json.results[0];
+      count =
+        typeof r.actual === 'number'
+          ? r.actual
+          : Number(r.count || r.value || 0);
+    } else if (Array.isArray(json.data) && json.data.length > 0) {
+      const r = json.data[0];
+      count = Number(r.actual || r.count || r.value || 0);
+    } else if (typeof json === 'object' && json !== null) {
+      count = Number(json.actual || json.count || json.value || 0);
+    }
+
+    results[off.key] = count || 0;
   }
 
-  if (!liveFetchFailed && Object.keys(results).length > 0) {
-    return {
-      violentCrime: results.violentCrime,
-      propertyCrime: results.propertyCrime,
-      year,
-      source: 'live',
-    } as FBICrimeData;
-  }
-
-  // If live fetch failed for any reason, fall back to deterministic mock estimates
-  console.warn(
-    'FBI live fetch failed, falling back to mock data.',
-    lastFetchError,
-  );
-  const pop = population ?? 0;
-  if (pop > 0) {
-    const violentCrime = Math.round((pop / 100000) * 400);
-    const propertyCrime = Math.round((pop / 100000) * 1500);
-    return {
-      violentCrime,
-      propertyCrime,
-      year,
-      source: 'mock',
-    } as FBICrimeData;
+  if (Object.keys(results).length === 0) {
+    throw new Error('FBI API returned no results');
   }
 
   return {
-    violentCrime: 50,
-    propertyCrime: 300,
+    violentCrime: results.violentCrime,
+    propertyCrime: results.propertyCrime,
     year,
-    source: 'mock',
+    source: 'live',
   } as FBICrimeData;
 }
 

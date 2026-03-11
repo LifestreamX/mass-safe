@@ -38,3 +38,6 @@ prisma/migrations/
 
 # Local todos
 todo.txt
+
+# crime data JSON
+/ma_crime_overview_2024.json

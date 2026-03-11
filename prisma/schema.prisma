@@ -24,15 +24,32 @@ model User {
 }
 
 model City {
-  id         String  @id @default(cuid())
-  name       String
-  county     String
+  id           String  @id @default(cuid())
+  jurisdiction String  @unique // URL slug identifier (e.g., "boston", "worcester")
+  name         String  // Display name (e.g., "Boston", "Worcester")
+  url          String  // Source URL from MA crime portal
+  year         String  // Data year (e.g., "2024")
+  
+  // Crime statistics
+  crimesTotal         Int
+  crimesClearanceRate Float?
+  
+  // Population and rates
   population Int
-  latitude   Float?
-  longitude  Float?
-  state      String  @default("Massachusetts")
-
-  // New fields from massachusetts_municipalities.csv
+  crimeRate  Float?
+  
+  // Arrest statistics
+  arrestsTotal Int
+  arrestRate   Float?
+  
+  // Data quality flag
+  success Boolean @default(true)
+  
+  // Legacy fields (optional, for backward compatibility)
+  county              String?
+  latitude            Float?
+  longitude           Float?
+  state               String  @default("Massachusetts")
   type                String?
   government          String?
   area_total_sq_mi    Float?
@@ -42,8 +59,8 @@ model City {
   savedLocations SavedLocation[]
   crimeCache     CrimeCache[]
 
-  @@unique([name, state])
   @@index([name])
+  @@index([jurisdiction])
   @@map("cities")
 }
 

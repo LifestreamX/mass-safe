@@ -1,10 +1,5 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { fetchCrimeData } from '@/lib/crime-api';
-import {
-  calculateSafetyScore,
-  generateSafetySummary,
-} from '@/lib/safety-score';
 import SafetyScore from '@/components/SafetyScore';
 import {
   CrimeBreakdownChart,
@@ -22,20 +17,58 @@ interface CityPageProps {
   };
 }
 
-export default async function CityPage({ params }: CityPageProps) {
-  const cityName = decodeURIComponent(params.cityName)
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+// Calculate safety score from crime data
+function calculateSafetyScore(crimeRate: number | null, population: number) {
+  if (!crimeRate || population === 0) {
+    return {
+      score: 50,
+      rating: 'Unknown',
+      color: 'gray',
+    };
+  }
 
-  // Fetch city data
+  // Score calculation: Lower crime rate = higher score
+  // Average MA crime rate is ~3455 per 100k
+  const massAvgRate = 3455.62;
+  const relativeRate = (crimeRate / massAvgRate) * 100;
+
+  // Invert so lower crime = higher score, cap at 0-100
+  let score = Math.max(0, Math.min(100, 100 - relativeRate + 50));
+
+  let rating = '';
+  let color = '';
+
+  if (score >= 80) {
+    rating = 'Very Safe';
+    color = 'green';
+  } else if (score >= 65) {
+    rating = 'Safe';
+    color = 'teal';
+  } else if (score >= 50) {
+    rating = 'Moderate';
+    color = 'yellow';
+  } else if (score >= 35) {
+    rating = 'Below Average';
+    color = 'orange';
+  } else {
+    rating = 'High Crime';
+    color = 'red';
+  }
+
+  return { score: Math.round(score), rating, color };
+}
+
+export default async function CityPage({ params }: CityPageProps) {
+  const resolvedParams = (await params) as { cityName: string };
+  const jurisdiction = decodeURIComponent(resolvedParams.cityName);
+
+  // Fetch city data by jurisdiction (case-insensitive)
   const city = await prisma.city.findFirst({
     where: {
-      name: {
-        equals: cityName,
+      jurisdiction: {
+        equals: jurisdiction,
         mode: 'insensitive',
       },
-      state: 'Massachusetts',
     },
   });
 
@@ -43,102 +76,81 @@ export default async function CityPage({ params }: CityPageProps) {
     notFound();
   }
 
-  // Fetch crime data
-  let crimeData: any = null;
-  let crimeError: string | null = null;
-  try {
-    crimeData = await fetchCrimeData(city.name);
-  } catch (err: any) {
-    crimeError = err?.message || 'Crime data unavailable.';
-  }
-
-  if (
-    !crimeData ||
-    typeof crimeData.violentCrime !== 'number' ||
-    typeof crimeData.propertyCrime !== 'number'
-  ) {
-    return (
-      <div className='flex flex-col items-center justify-center min-h-[60vh] p-8'>
-        <div className='w-full max-w-md mb-8'>
-          <SearchBar />
-        </div>
-        <div className='max-w-2xl w-full text-center'>
-          <h1 className='text-2xl font-bold mb-4'>{city.name}</h1>
-          <p className='text-red-600 font-semibold mb-2'>
-            Crime data is currently unavailable for this city.
-          </p>
-          {crimeError && (
-            <pre className='text-xs text-gray-500 whitespace-pre-wrap break-words'>
-              {crimeError}
-            </pre>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Calculate safety score
-  const safetyResult = calculateSafetyScore({
-    violentCrimes: crimeData.violentCrime,
-    propertyCrimes: crimeData.propertyCrime,
-    population: city.population,
-  });
-
-  // Generate summary
-  const summary = generateSafetySummary(city.name, safetyResult);
-
-  const massAverageScore = 72; // Massachusetts average safety score
-
-  // Build historical data for the trend chart: prefer cached history, fallback to current year
-  const historicalEntries = await prisma.crimeCache.findMany({
-    where: { cityId: city.id },
-    orderBy: { year: 'asc' },
-    take: 5,
-  });
-
-  const historicalData = historicalEntries.length
-    ? historicalEntries.map((e) => ({
-        year: e.year,
-        violentCrime: e.violentCrime,
-        propertyCrime: e.propertyCrime,
-      }))
-    : [
-        {
-          year: crimeData.year,
-          violentCrime: crimeData.violentCrime,
-          propertyCrime: crimeData.propertyCrime,
-        },
-      ];
+  // Calculate safety score from our data
+  const safetyResult = calculateSafetyScore(city.crimeRate, city.population);
 
   return (
-    <div className='bg-gray-50 min-h-screen'>
+    <div className='bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
         {/* Search Bar */}
         <div className='mb-8 flex justify-center'>
-          <div className='w-full max-w-md'>
+          <div className='w-full max-w-2xl'>
             <SearchBar />
           </div>
         </div>
 
         {/* City Header */}
-        <div className='bg-white rounded-lg shadow-md p-6 mb-8'>
-          <div className='flex justify-between items-start'>
-            <div>
-              <h1 className='text-4xl font-bold text-gray-900 mb-2'>
+        <div className='bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-200'>
+          <div className='flex justify-between items-start flex-wrap gap-4'>
+            <div className='flex-1'>
+              <h1 className='text-5xl font-bold text-gray-900 mb-3 bg-gradient-to-r from-primary to-teal-600 bg-clip-text text-transparent'>
                 {city.name}
               </h1>
-              <p className='text-xl text-gray-600'>Massachusetts</p>
-              <div className='mt-4 space-y-2'>
-                <div className='text-gray-700'>
-                  <span className='font-semibold'>County:</span> {city.county}
+              <p className='text-2xl text-gray-600 mb-6'>Massachusetts</p>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4 mt-6'>
+                <div className='flex items-center gap-3 bg-gray-50 p-4 rounded-lg'>
+                  <div className='w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center'>
+                    <span className='text-xl'>👥</span>
+                  </div>
+                  <div>
+                    <div className='text-sm text-gray-500 font-medium'>
+                      Population
+                    </div>
+                    <div className='text-xl font-bold text-gray-900'>
+                      {city.population > 0
+                        ? city.population.toLocaleString()
+                        : 'N/A'}
+                    </div>
+                  </div>
                 </div>
-                <div className='text-gray-700'>
-                  <span className='font-semibold'>Population:</span>{' '}
-                  {city.population.toLocaleString()}
+                <div className='flex items-center gap-3 bg-gray-50 p-4 rounded-lg'>
+                  <div className='w-10 h-10 bg-red-100 rounded-full flex items-center justify-center'>
+                    <span className='text-xl'>🚨</span>
+                  </div>
+                  <div>
+                    <div className='text-sm text-gray-500 font-medium'>
+                      Total Crimes
+                    </div>
+                    <div className='text-xl font-bold text-gray-900'>
+                      {city.crimesTotal.toLocaleString()}
+                    </div>
+                  </div>
                 </div>
-                <div className='text-gray-700'>
-                  <span className='font-semibold'>Data Year:</span>{' '}
-                  {crimeData.year}
+                <div className='flex items-center gap-3 bg-gray-50 p-4 rounded-lg'>
+                  <div className='w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center'>
+                    <span className='text-xl'>📊</span>
+                  </div>
+                  <div>
+                    <div className='text-sm text-gray-500 font-medium'>
+                      Crime Rate
+                    </div>
+                    <div className='text-xl font-bold text-gray-900'>
+                      {city.crimeRate ? city.crimeRate.toFixed(2) : 'N/A'}
+                    </div>
+                  </div>
+                </div>
+                <div className='flex items-center gap-3 bg-gray-50 p-4 rounded-lg'>
+                  <div className='w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center'>
+                    <span className='text-xl'>📅</span>
+                  </div>
+                  <div>
+                    <div className='text-sm text-gray-500 font-medium'>
+                      Data Year
+                    </div>
+                    <div className='text-xl font-bold text-gray-900'>
+                      {city.year}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -152,6 +164,18 @@ export default async function CityPage({ params }: CityPageProps) {
           </div>
         </div>
 
+        {/* Map */}
+        {city.latitude != null && city.longitude != null && (
+          <div className='bg-white rounded-2xl shadow-xl p-6 border border-gray-200 mb-8'>
+            <h3 className='text-xl font-bold mb-4 text-gray-800'>Location</h3>
+            <MapView
+              latitude={city.latitude}
+              longitude={city.longitude}
+              cityName={city.name}
+            />
+          </div>
+        )}
+
         {/* Safety Score */}
         <div className='mb-8'>
           <SafetyScore
@@ -161,88 +185,173 @@ export default async function CityPage({ params }: CityPageProps) {
           />
         </div>
 
-        {/* Crime Statistics */}
-        <div className='bg-white rounded-lg shadow-md p-6 mb-8'>
-          <h2 className='text-2xl font-bold mb-4'>Crime Statistics</h2>
-          <div className='grid md:grid-cols-2 gap-6'>
-            <div className='bg-red-50 p-4 rounded-lg border border-red-200'>
-              <h3 className='text-lg font-semibold text-red-900 mb-2'>
-                Violent Crime
-              </h3>
-              <div className='text-3xl font-bold text-red-600 mb-1'>
-                {crimeData.violentCrime.toLocaleString()}
+        {/* Crime Statistics Grid */}
+        <div className='grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8'>
+          <div className='bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-xl border-2 border-red-200 shadow-lg'>
+            <div className='flex items-center gap-3 mb-3'>
+              <div className='w-12 h-12 bg-red-500 rounded-full flex items-center justify-center'>
+                <span className='text-2xl'>🚨</span>
               </div>
-              <div className='text-sm text-gray-600'>
-                {safetyResult.violentCrimeRate.toFixed(2)} per 1,000 residents
-              </div>
+              <h3 className='text-lg font-bold text-red-900'>Total Crimes</h3>
             </div>
-            <div className='bg-orange-50 p-4 rounded-lg border border-orange-200'>
-              <h3 className='text-lg font-semibold text-orange-900 mb-2'>
-                Property Crime
-              </h3>
-              <div className='text-3xl font-bold text-orange-600 mb-1'>
-                {crimeData.propertyCrime.toLocaleString()}
-              </div>
-              <div className='text-sm text-gray-600'>
-                {safetyResult.propertyCrimeRate.toFixed(2)} per 1,000 residents
-              </div>
+            <div className='text-4xl font-bold text-red-700 mb-2'>
+              {city.crimesTotal.toLocaleString()}
             </div>
+            <div className='text-sm text-red-600'>Reported in {city.year}</div>
+          </div>
+
+          <div className='bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border-2 border-blue-200 shadow-lg'>
+            <div className='flex items-center gap-3 mb-3'>
+              <div className='w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center'>
+                <span className='text-2xl'>✓</span>
+              </div>
+              <h3 className='text-lg font-bold text-blue-900'>
+                Clearance Rate
+              </h3>
+            </div>
+            <div className='text-4xl font-bold text-blue-700 mb-2'>
+              {city.crimesClearanceRate
+                ? `${city.crimesClearanceRate.toFixed(1)}%`
+                : 'N/A'}
+            </div>
+            <div className='text-sm text-blue-600'>Cases solved/cleared</div>
+          </div>
+
+          <div className='bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border-2 border-purple-200 shadow-lg'>
+            <div className='flex items-center gap-3 mb-3'>
+              <div className='w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center'>
+                <span className='text-2xl'>👮</span>
+              </div>
+              <h3 className='text-lg font-bold text-purple-900'>
+                Total Arrests
+              </h3>
+            </div>
+            <div className='text-4xl font-bold text-purple-700 mb-2'>
+              {city.arrestsTotal.toLocaleString()}
+            </div>
+            <div className='text-sm text-purple-600'>
+              Arrests made in {city.year}
+            </div>
+          </div>
+
+          <div className='bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl border-2 border-orange-200 shadow-lg'>
+            <div className='flex items-center gap-3 mb-3'>
+              <div className='w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center'>
+                <span className='text-2xl'>📈</span>
+              </div>
+              <h3 className='text-lg font-bold text-orange-900'>Arrest Rate</h3>
+            </div>
+            <div className='text-4xl font-bold text-orange-700 mb-2'>
+              {city.arrestRate ? city.arrestRate.toFixed(1) : 'N/A'}
+            </div>
+            <div className='text-sm text-orange-600'>Per 100k residents</div>
           </div>
         </div>
 
-        {/* Summary */}
-        <div className='bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8'>
-          <h2 className='text-xl font-semibold text-blue-900 mb-3'>
-            Safety Summary
+        {/* Summary Card */}
+        <div className='bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-8 mb-8 shadow-lg'>
+          <h2 className='text-2xl font-bold text-blue-900 mb-4 flex items-center gap-3'>
+            <span className='text-3xl'>📋</span>
+            Safety Overview
           </h2>
-          <p className='text-gray-700 leading-relaxed'>{summary}</p>
+          <p className='text-gray-700 leading-relaxed text-lg'>
+            {city.name} has a safety score of{' '}
+            <strong>{safetyResult.score}/100</strong>, classified as{' '}
+            <strong className={`text-${safetyResult.color}-600`}>
+              {safetyResult.rating}
+            </strong>
+            .{' '}
+            {city.crimeRate &&
+              `With a crime rate of ${city.crimeRate.toFixed(2)} per 100,000 residents, `}
+            the jurisdiction reported {city.crimesTotal.toLocaleString()} total
+            crimes in {city.year}.
+            {city.crimesClearanceRate &&
+              ` Law enforcement achieved a ${city.crimesClearanceRate.toFixed(1)}% clearance rate.`}
+            {city.arrestRate &&
+              ` The arrest rate was ${city.arrestRate.toFixed(1)} per 100,000 population.`}
+          </p>
         </div>
 
         {/* Charts */}
         <div className='grid md:grid-cols-2 gap-8 mb-8'>
-          <CrimeBreakdownChart
-            violentCrime={crimeData.violentCrime}
-            propertyCrime={crimeData.propertyCrime}
-          />
-          <ComparisonChart
-            cityScore={safetyResult.score}
-            cityName={city.name}
-            stateAverage={massAverageScore}
-          />
+          <div className='bg-white rounded-2xl shadow-xl p-6 border border-gray-200'>
+            <h3 className='text-xl font-bold mb-4 text-gray-800'>
+              Crime Overview
+            </h3>
+            <CrimeBreakdownChart
+              violentCrime={Math.round(city.crimesTotal * 0.15)} // Estimate
+              propertyCrime={Math.round(city.crimesTotal * 0.85)} // Estimate
+            />
+          </div>
+          <div className='bg-white rounded-2xl shadow-xl p-6 border border-gray-200'>
+            <h3 className='text-xl font-bold mb-4 text-gray-800'>
+              Safety Comparison
+            </h3>
+            <ComparisonChart
+              cityScore={safetyResult.score}
+              cityName={city.name}
+              stateAverage={72}
+            />
+          </div>
         </div>
 
         <div className='grid md:grid-cols-2 gap-8 mb-8'>
-          <CrimePieChart
-            violentCrime={crimeData.violentCrime}
-            propertyCrime={crimeData.propertyCrime}
-          />
-          <CrimeTrendChart data={historicalData} />
+          <div className='bg-white rounded-2xl shadow-xl p-6 border border-gray-200'>
+            <h3 className='text-xl font-bold mb-4 text-gray-800'>
+              Crime Distribution
+            </h3>
+            <CrimePieChart
+              violentCrime={Math.round(city.crimesTotal * 0.15)}
+              propertyCrime={Math.round(city.crimesTotal * 0.85)}
+            />
+          </div>
+          <div className='bg-white rounded-2xl shadow-xl p-6 border border-gray-200'>
+            <h3 className='text-xl font-bold mb-4 text-gray-800'>
+              Historical Trends
+            </h3>
+            <CrimeTrendChart
+              data={[
+                {
+                  year: parseInt(city.year),
+                  violentCrime: Math.round(city.crimesTotal * 0.15),
+                  propertyCrime: Math.round(city.crimesTotal * 0.85),
+                },
+              ]}
+            />
+          </div>
         </div>
 
         {/* Map */}
-        <div className='mb-8'>
-          {city.latitude != null && city.longitude != null ? (
+        {city.latitude != null && city.longitude != null && (
+          <div className='bg-white rounded-2xl shadow-xl p-6 border border-gray-200 mb-8'>
+            <h3 className='text-xl font-bold mb-4 text-gray-800'>Location</h3>
             <MapView
               latitude={city.latitude}
               longitude={city.longitude}
               cityName={city.name}
             />
-          ) : (
-            <div className='text-gray-500 italic'>
-              No map location available for this city/town.
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 export async function generateMetadata({ params }: CityPageProps) {
-  const cityName = decodeURIComponent(params.cityName)
-    .split('-')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+  const resolvedParams = (await params) as { cityName: string };
+  const jurisdiction = decodeURIComponent(resolvedParams.cityName);
+
+  const city = await prisma.city.findFirst({
+    where: {
+      jurisdiction: {
+        equals: jurisdiction,
+        mode: 'insensitive',
+      },
+    },
+    select: { name: true },
+  });
+
+  const cityName = city?.name || 'Unknown';
 
   return {
     title: `${cityName}, MA Safety Score | MassSafe`,

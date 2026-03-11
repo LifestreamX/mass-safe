@@ -60,7 +60,27 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Fetch from FBI API (pass population so mock fallback can estimate)
+    // If no FBI API key is configured, fall back to any cache (even if stale)
+    const apiKey = process.env.FBI_API_KEY;
+    if (!apiKey) {
+      if (crimeCache) {
+        return NextResponse.json({
+          violentCrime: crimeCache.violentCrime,
+          propertyCrime: crimeCache.propertyCrime,
+          year: crimeCache.year,
+          cached: true,
+          source: 'cache',
+          note: 'FBI_API_KEY not configured; returning cached data',
+        });
+      }
+
+      return NextResponse.json(
+        { error: 'FBI_API_KEY not configured and no cached data available' },
+        { status: 503 },
+      );
+    }
+
+    // Fetch live data from FBI API
     const crimeData = await fetchCrimeData(
       city.name,
       'Massachusetts',

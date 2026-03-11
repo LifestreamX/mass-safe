@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 /**
  * GET /api/city-search?q=query
- * Search for Massachusetts cities with autocomplete
+ * Search for Massachusetts jurisdictions with autocomplete
  */
 export async function GET(request: NextRequest) {
   try {
@@ -14,28 +14,43 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([]);
     }
 
-    const cities = await prisma.city.findMany({
+    const jurisdictions = await prisma.city.findMany({
       where: {
-        name: {
-          contains: query,
-          mode: 'insensitive',
-        },
-        state: 'Massachusetts',
+        OR: [
+          {
+            name: {
+              contains: query,
+              mode: 'insensitive',
+            },
+          },
+          {
+            jurisdiction: {
+              contains: query,
+              mode: 'insensitive',
+            },
+          },
+        ],
       },
       select: {
         id: true,
+        jurisdiction: true,
         name: true,
-        county: true,
-        population: true, // 2020 Census
-        type: true,
+        population: true,
+        crimeRate: true,
+        crimesTotal: true,
       },
       take: 10,
-      orderBy: {
-        name: 'asc',
-      },
+      orderBy: [
+        {
+          population: 'desc', // Show more populous areas first
+        },
+        {
+          name: 'asc',
+        },
+      ],
     });
 
-    return NextResponse.json(cities);
+    return NextResponse.json(jurisdictions);
   } catch (error) {
     console.error('City search error:', error);
     return NextResponse.json(

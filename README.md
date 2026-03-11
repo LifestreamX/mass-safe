@@ -62,3 +62,7 @@ Find safer places to live in Massachusetts.
 - `GET /api/crime-data?city={cityName}` - Crime stats
 - `POST /api/safety-score` - Calculate safety score
 - `POST/DELETE/GET /api/save-location` - Manage saved cities (auth required)
+
+### Data File
+
+- The file `ma_crime_overview_2024.json` is used for seeding the database and is **git-ignored** by default. If you need to re-seed, place the file in the project root.

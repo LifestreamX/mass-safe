@@ -80,9 +80,10 @@ export default async function DashboardPage() {
                 <CityCard
                   key={location.id}
                   id={location.city.id}
+                  jurisdiction={location.city.jurisdiction}
                   name={location.city.name}
-                  county={location.city.county}
                   population={location.city.population}
+                  crimeRate={location.city.crimeRate}
                   safetyScore={location.safetyScore || undefined}
                   safetyColor={getScoreColor(location.safetyScore)}
                 />
