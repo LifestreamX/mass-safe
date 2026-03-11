@@ -28,9 +28,16 @@ model City {
   name       String
   county     String
   population Int
-  latitude   Float
-  longitude  Float
+  latitude   Float?
+  longitude  Float?
   state      String  @default("Massachusetts")
+
+  // New fields from massachusetts_municipalities.csv
+  type                String?
+  government          String?
+  area_total_sq_mi    Float?
+  area_land_sq_mi     Float?
+  year_incorporated   Int?
 
   savedLocations SavedLocation[]
   crimeCache     CrimeCache[]

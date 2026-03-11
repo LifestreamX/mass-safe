@@ -73,7 +73,7 @@ export default function SaveButton({
       className={`px-6 py-3 rounded-lg font-semibold transition ${
         saved
           ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          : 'bg-primary text-white hover:bg-blue-700'
+          : 'bg-primary text-white hover:filter hover:brightness-90'
       } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       {loading ? 'Saving...' : saved ? '✓ Saved' : '+ Save this city'}

@@ -69,7 +69,7 @@ export default async function DashboardPage() {
               </p>
               <a
                 href='/'
-                className='inline-block px-6 py-3 bg-primary text-white rounded-lg hover:bg-blue-700 transition'
+                className='inline-block px-6 py-3 bg-primary text-white rounded-lg hover:filter hover:brightness-90 transition'
               >
                 Start Searching
               </a>

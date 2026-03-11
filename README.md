@@ -6,7 +6,7 @@ Find safer places to live in Massachusetts.
 
 ## Features
 
-- Search Massachusetts cities or ZIP codes
+- Search Massachusetts cities
 - View crime statistics and safety scores
 - Interactive charts and map visualizations
 - Sign in with Google (optional)

@@ -200,11 +200,17 @@ export default async function CityPage({ params }: CityPageProps) {
 
         {/* Map */}
         <div className='mb-8'>
-          <MapView
-            latitude={city.latitude}
-            longitude={city.longitude}
-            cityName={city.name}
-          />
+          {city.latitude != null && city.longitude != null ? (
+            <MapView
+              latitude={city.latitude}
+              longitude={city.longitude}
+              cityName={city.name}
+            />
+          ) : (
+            <div className='text-gray-500 italic'>
+              No map location available for this city/town.
+            </div>
+          )}
         </div>
       </div>
     </div>

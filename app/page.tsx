@@ -30,7 +30,7 @@ export default async function HomePage() {
 
         {/* Search Bar */}
         <div className='mb-12 flex justify-center'>
-          <SearchBar placeholder='Search Massachusetts cities or ZIP codes' />
+          <SearchBar placeholder='Search Massachusetts cities' />
         </div>
 
         {/* Popular Searches */}

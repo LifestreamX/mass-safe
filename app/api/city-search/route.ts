@@ -26,7 +26,8 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         county: true,
-        // population: true, // removed
+        population: true, // 2020 Census
+        type: true,
       },
       take: 10,
       orderBy: {

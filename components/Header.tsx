@@ -49,7 +49,7 @@ export default function Header() {
             ) : (
               <button
                 onClick={() => signIn('google')}
-                className='px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition'
+                className='px-4 py-2 bg-primary text-white rounded-lg hover:filter hover:brightness-90 transition'
               >
                 Sign In
               </button>
