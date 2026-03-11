@@ -174,7 +174,7 @@ export default function SearchBar({
                 <li
                   key={city.id}
                   onClick={() => navigateToCity(city.name)}
-                  className={`flex flex-col gap-1 px-5 py-3 cursor-pointer transition-colors duration-150 outline-none ${
+                  className={`px-5 py-3 cursor-pointer transition-colors duration-150 outline-none ${
                     highlightedIndex === idx
                       ? 'bg-primary/20'
                       : 'hover:bg-primary/10'
@@ -187,24 +187,26 @@ export default function SearchBar({
                   }}
                   aria-selected={highlightedIndex === idx}
                 >
-                  <div className='flex items-center justify-between w-full'>
-                    <div className='flex items-center gap-2'>
+                  <div className='grid grid-cols-3 items-center text-left w-full gap-4'>
+                    <div className='flex items-center justify-start gap-2'>
                       <span className='font-semibold text-gray-900'>
                         {city.name}
                       </span>
                       {city.type && (
-                        <span className='ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200'>
+                        <span className='inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200'>
                           {city.type}
                         </span>
                       )}
                     </div>
-                    <span className='text-xs text-gray-400'>
+
+                    <div className='text-xs text-gray-500'>
+                      {city.county} County
+                    </div>
+
+                    <div className='text-xs text-gray-400'>
                       Pop. {city.population.toLocaleString()} (2020)
-                    </span>
+                    </div>
                   </div>
-                  <span className='text-xs text-gray-500'>
-                    {city.county} County
-                  </span>
                 </li>
               ))}
             </ul>
