@@ -60,8 +60,12 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Fetch from FBI API
-    const crimeData = await fetchCrimeData(city.name);
+    // Fetch from FBI API (pass population so mock fallback can estimate)
+    const crimeData = await fetchCrimeData(
+      city.name,
+      'Massachusetts',
+      city.population ?? undefined,
+    );
 
     // Update or create cache
     crimeCache = await prisma.crimeCache.upsert({
