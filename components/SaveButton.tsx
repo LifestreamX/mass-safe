@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 
 interface SaveButtonProps {
   cityId: string;
@@ -22,7 +22,8 @@ export default function SaveButton({
 
   const handleSave = async () => {
     if (!session) {
-      alert('Please sign in to save locations');
+      // Prompt user to sign in
+      signIn('google');
       return;
     }
 
@@ -30,10 +31,17 @@ export default function SaveButton({
 
     try {
       if (saved) {
-        // Remove saved location
-        // Note: This would require getting the savedLocation ID
-        // For simplicity, we'll just toggle the state
-        setSaved(false);
+        // Remove saved location - assuming cityId is enough for deleteMany
+        const response = await fetch(`/api/save-location?cityId=${cityId}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          setSaved(false);
+        } else {
+          const data = await response.json();
+          alert(data.error || 'Failed to remove location');
+        }
       } else {
         // Save location
         const response = await fetch('/api/save-location', {
@@ -62,21 +70,31 @@ export default function SaveButton({
     }
   };
 
-  if (!session) {
-    return null;
-  }
-
   return (
     <button
       onClick={handleSave}
       disabled={loading}
-      className={`px-6 py-3 rounded-lg font-semibold transition ${
+      className={`px-8 py-3 rounded-full font-bold shadow-md transform transition active:scale-95 ${
         saved
-          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          : 'bg-primary text-white hover:filter hover:brightness-90'
+          ? 'bg-emerald-50 text-emerald-600 border-2 border-emerald-500 hover:bg-emerald-100'
+          : 'bg-primary text-white hover:shadow-lg hover:brightness-105'
       } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
-      {loading ? 'Saving...' : saved ? '✓ Saved' : '+ Save this city'}
+      <div className='flex items-center gap-2'>
+        {loading ? (
+          <span className='animate-pulse'>Processing...</span>
+        ) : saved ? (
+          <>
+            <span className='text-lg'>✓</span>
+            <span>Saved</span>
+          </>
+        ) : (
+          <>
+            <span className='text-lg'>+</span>
+            <span>Save to List</span>
+          </>
+        )}
+      </div>
     </button>
   );
 }

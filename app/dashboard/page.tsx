@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import CityCard from '@/components/CityCard';
+import MapView from '@/components/MapView';
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -32,6 +33,15 @@ export default async function DashboardPage() {
       createdAt: 'desc',
     },
   });
+
+  // Prepare map pins
+  const mapPins = savedLocations
+    .filter((loc) => loc.city.latitude != null && loc.city.longitude != null)
+    .map((loc) => ({
+      latitude: loc.city.latitude!,
+      longitude: loc.city.longitude!,
+      cityName: loc.city.name,
+    }));
 
   // Calculate colors for safety scores
   const getScoreColor = (score: number | null) => {
@@ -75,20 +85,28 @@ export default async function DashboardPage() {
               </a>
             </div>
           ) : (
-            <div className='grid md:grid-cols-2 lg:grid-cols-3 gap-6'>
-              {savedLocations.map((location) => (
-                <CityCard
-                  key={location.id}
-                  id={location.city.id}
-                  jurisdiction={location.city.jurisdiction}
-                  name={location.city.name}
-                  population={location.city.population}
-                  crimeRate={location.city.crimeRate}
-                  safetyScore={location.safetyScore || undefined}
-                  safetyColor={getScoreColor(location.safetyScore)}
-                />
-              ))}
-            </div>
+            <>
+              {mapPins.length > 0 && (
+                <div className='mb-8 rounded-xl overflow-hidden shadow-inner border border-gray-200'>
+                  <MapView pins={mapPins} />
+                </div>
+              )}
+              <div className='grid md:grid-cols-2 lg:grid-cols-3 gap-6'>
+                {savedLocations.map((location) => (
+                  <CityCard
+                    key={location.id}
+                    id={location.cityId}
+                    jurisdiction={location.city.jurisdiction}
+                    name={location.city.name}
+                    population={location.city.population}
+                    crimeRate={location.city.crimeRate}
+                    safetyScore={location.safetyScore || undefined}
+                    safetyColor={getScoreColor(location.safetyScore)}
+                    showRemove={true}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </div>
 

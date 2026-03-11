@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * DELETE /api/save-location?id=locationId
+ * DELETE /api/save-location?id=locationId&cityId=cityId
  * Remove a saved location
  */
 export async function DELETE(request: NextRequest) {
@@ -79,10 +79,11 @@ export async function DELETE(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const locationId = searchParams.get('id');
+    const cityId = searchParams.get('cityId');
 
-    if (!locationId) {
+    if (!locationId && !cityId) {
       return NextResponse.json(
-        { error: 'Location ID is required' },
+        { error: 'Location ID or City ID is required' },
         { status: 400 },
       );
     }
@@ -99,8 +100,8 @@ export async function DELETE(request: NextRequest) {
     // Delete saved location (if it belongs to the user)
     await prisma.savedLocation.deleteMany({
       where: {
-        id: locationId,
         userId: user.id,
+        ...(locationId ? { id: locationId } : { cityId: cityId }),
       },
     });
 

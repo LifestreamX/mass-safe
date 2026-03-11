@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import SafetyScore from '@/components/SafetyScore';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import {
   CrimeBreakdownChart,
   CrimeTrendChart,
@@ -74,6 +76,20 @@ export default async function CityPage({ params }: CityPageProps) {
 
   if (!city) {
     notFound();
+  }
+
+  // Check if city is saved by current user
+  const session = await getServerSession(authOptions);
+  let isSaved = false;
+
+  if (session?.user?.email) {
+    const saved = await prisma.savedLocation.findFirst({
+      where: {
+        cityId: city.id,
+        user: { email: session.user.email },
+      },
+    });
+    isSaved = !!saved;
   }
 
   // Calculate safety score from our data
@@ -159,6 +175,7 @@ export default async function CityPage({ params }: CityPageProps) {
                 cityId={city.id}
                 cityName={city.name}
                 safetyScore={safetyResult.score}
+                initialSaved={isSaved}
               />
             </div>
           </div>
@@ -320,18 +337,6 @@ export default async function CityPage({ params }: CityPageProps) {
             />
           </div>
         </div>
-
-        {/* Map */}
-        {city.latitude != null && city.longitude != null && (
-          <div className='bg-white rounded-2xl shadow-xl p-6 border border-gray-200 mb-8'>
-            <h3 className='text-xl font-bold mb-4 text-gray-800'>Location</h3>
-            <MapView
-              latitude={city.latitude}
-              longitude={city.longitude}
-              cityName={city.name}
-            />
-          </div>
-        )}
       </div>
     </div>
   );
