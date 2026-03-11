@@ -32,9 +32,22 @@ async function main() {
     const longitude = null; // Not present in new CSV
     await prisma.city.create({
       data: {
+        // Required fields
+        jurisdiction: (row.Name || '').toLowerCase().replace(/\s+/g, '-'),
         name: row.Name,
-        county: row.County,
+        url: row.URL || 'https://www.mass.gov/',
+        year: row.Year || '2024',
+        crimesTotal: row.CrimesTotal ? parseInt(row.CrimesTotal, 10) : 0,
+        crimesClearanceRate: row.CrimesClearanceRate
+          ? parseFloat(row.CrimesClearanceRate)
+          : null,
         population: isNaN(population) ? 0 : population,
+        crimeRate: row.CrimeRate ? parseFloat(row.CrimeRate) : null,
+        arrestsTotal: row.ArrestsTotal ? parseInt(row.ArrestsTotal, 10) : 0,
+        arrestRate: row.ArrestRate ? parseFloat(row.ArrestRate) : null,
+        success: true,
+        // Optional/legacy fields
+        county: row.County || null,
         latitude,
         longitude,
         state: 'Massachusetts',
