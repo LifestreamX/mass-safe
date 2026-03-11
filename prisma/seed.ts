@@ -1,14 +1,14 @@
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
-import csvParse from 'csv-parse/sync';
+import { parse as csvParse } from 'csv-parse/sync';
 
 const prisma = new PrismaClient();
 
 // Use the new authoritative CSV
 const csvPath = path.join(__dirname, '../massachusetts_municipalities.csv');
 const csvData = fs.readFileSync(csvPath, 'utf-8');
-const massachusettsCities = csvParse.parse(csvData, {
+const massachusettsCities = csvParse(csvData, {
   columns: true,
   skip_empty_lines: true,
 });
