@@ -89,6 +89,27 @@ export default async function CityPage({ params }: CityPageProps) {
 
   const massAverageScore = 72; // Massachusetts average safety score
 
+  // Build historical data for the trend chart: prefer cached history, fallback to current year
+  const historicalEntries = await prisma.crimeCache.findMany({
+    where: { cityId: city.id },
+    orderBy: { year: 'asc' },
+    take: 5,
+  });
+
+  const historicalData = historicalEntries.length
+    ? historicalEntries.map((e) => ({
+        year: e.year,
+        violentCrime: e.violentCrime,
+        propertyCrime: e.propertyCrime,
+      }))
+    : [
+        {
+          year: crimeData.year,
+          violentCrime: crimeData.violentCrime,
+          propertyCrime: crimeData.propertyCrime,
+        },
+      ];
+
   return (
     <div className='bg-gray-50 min-h-screen'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
