@@ -1,11 +1,15 @@
 'use client';
 
+import React from 'react';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
 
 export default function Header() {
   const { data: session } = useSession();
+
+  // Mobile dropdown state
+  const [showDropdown, setShowDropdown] = React.useState(false);
 
   return (
     <header className='bg-white shadow-sm border-b'>
@@ -30,8 +34,9 @@ export default function Header() {
 
                 <div className='h-8 w-[1px] bg-gray-200 hidden sm:block'></div>
 
-                <div className='flex items-center gap-4 py-1 px-2 pr-1 rounded-full hover:bg-gray-50 transition-all border border-transparent hover:border-gray-100'>
-                  <div className='hidden sm:flex flex-col items-end'>
+                {/* Desktop profile/sign out */}
+                <div className='hidden sm:flex items-center gap-4 py-1 px-2 pr-1 rounded-full hover:bg-gray-50 transition-all border border-transparent hover:border-gray-100'>
+                  <div className='flex flex-col items-end'>
                     <span className='text-sm font-semibold text-gray-900 leading-none capitalize'>
                       {session.user?.name?.split(' ')[0]}
                     </span>
@@ -42,7 +47,6 @@ export default function Header() {
                       Sign Out
                     </button>
                   </div>
-
                   <div className='relative w-9 h-9 shrink-0 overflow-hidden rounded-full border-2 border-white shadow-sm ring-1 ring-gray-200'>
                     {session.user?.image ? (
                       <Image
@@ -57,6 +61,46 @@ export default function Header() {
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Mobile profile/sign out dropdown */}
+                <div className='sm:hidden relative'>
+                  <button
+                    onClick={() => setShowDropdown((v) => !v)}
+                    className='relative w-9 h-9 shrink-0 overflow-hidden rounded-full border-2 border-white shadow-sm ring-1 ring-gray-200 focus:outline-none focus:ring-2 focus:ring-primary'
+                    aria-label='Open profile menu'
+                  >
+                    {session.user?.image ? (
+                      <Image
+                        src={session.user.image}
+                        alt={session.user.name || 'User'}
+                        fill
+                        className='object-cover'
+                      />
+                    ) : (
+                      <div className='w-full h-full bg-primary/10 flex items-center justify-center text-primary font-bold'>
+                        {session.user?.name?.[0]?.toUpperCase()}
+                      </div>
+                    )}
+                  </button>
+                  {showDropdown && (
+                    <div className='absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-lg border border-gray-100 z-50 animate-fadeIn'>
+                      <div className='px-4 py-3 border-b border-gray-100'>
+                        <span className='block text-sm font-semibold text-gray-900 capitalize'>
+                          {session.user?.name?.split(' ')[0]}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowDropdown(false);
+                          signOut();
+                        }}
+                        className='w-full text-left px-4 py-3 text-sm text-red-600 font-semibold hover:bg-gray-50 rounded-b-xl transition-colors'
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (

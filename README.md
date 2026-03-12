@@ -3,6 +3,7 @@
 A modern, full-stack Massachusetts city safety dashboard. Built with Next.js 16, Prisma, NextAuth, CockroachDB, and Leaflet.
 
 ## Features
+
 - Search and view Massachusetts cities with crime and safety data
 - Save favorite cities to your dashboard (requires Google login)
 - See all your saved cities pinned on a map
@@ -10,6 +11,7 @@ A modern, full-stack Massachusetts city safety dashboard. Built with Next.js 16,
 - Fully responsive, beautiful UI
 
 ## Tech Stack
+
 - Next.js 16 (App Router, Turbopack)
 - Prisma ORM (CockroachDB)
 - NextAuth.js (Google OAuth)
@@ -17,6 +19,7 @@ A modern, full-stack Massachusetts city safety dashboard. Built with Next.js 16,
 - Leaflet (OpenStreetMap)
 
 ## Setup
+
 1. **Clone the repo:**
    ```sh
    git clone https://github.com/LifestreamX/mass-safe.git
@@ -43,8 +46,10 @@ A modern, full-stack Massachusetts city safety dashboard. Built with Next.js 16,
    ```
 
 ## Deployment
+
 - Set all required environment variables in your deployment platform (Vercel, Netlify, etc.)
 - Make sure `NEXTAUTH_URL` matches your deployed domain
 
 ## License
+
 MIT

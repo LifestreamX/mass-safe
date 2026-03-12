@@ -104,7 +104,8 @@ export default function SearchBar({
       ref={dropdownRef}
     >
       <form onSubmit={handleSubmit} className='w-full'>
-        <div className='relative flex justify-center items-center'>
+        {/* Responsive: stack input and button on mobile, inline on sm+ */}
+        <div className='flex flex-col sm:flex-row sm:items-center sm:relative gap-2 sm:gap-0'>
           <input
             type='text'
             value={query}
@@ -113,7 +114,7 @@ export default function SearchBar({
               setHighlightedIndex(-1);
             }}
             placeholder={placeholder}
-            className=' w-full px-6 py-4 text-lg border-2 border-gray-300 rounded-full focus:outline-none focus:border-primary shadow-lg text-center transition-all duration-200 focus:shadow-primary/20'
+            className='w-full h-14 sm:h-auto px-6 py-4 text-lg border-2 border-gray-300 rounded-full focus:outline-none focus:border-primary shadow-lg text-center transition-all duration-200 focus:shadow-primary/20'
             autoComplete='off'
             aria-autocomplete='list'
             aria-expanded={isOpen}
@@ -138,9 +139,10 @@ export default function SearchBar({
               }
             }}
           />
+          {/* Button below input on mobile, inline on sm+ */}
           <button
             type='submit'
-            className='absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-primary text-white rounded-full hover:filter hover:brightness-90 transition'
+            className='mt-2 sm:mt-0 w-full h-14 sm:w-auto sm:h-auto sm:absolute sm:right-2 sm:top-1/2 sm:-translate-y-1/2 px-6 py-4 bg-primary text-white rounded-full hover:filter hover:brightness-90 transition text-lg font-semibold'
           >
             Search
           </button>
